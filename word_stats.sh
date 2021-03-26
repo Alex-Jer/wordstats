@@ -1,58 +1,51 @@
 #!/usr/bin/env bash
 
-# ================================================================================
-
 # Validação de parâmetros
 if ! [ "$1" ] || ! [ "$2" ]; then
-  echo '[ERROR] Insufficient parameters!'
-  echo './word_stats.sh Cc|Pp|Tt INPUT [iso3166]'
+  echo >&2 "[ERROR] Insufficient parameters!"
+  echo >&2 "./word_stats.sh Cc|Pp|Tt INPUT [iso3166]"
   exit 1
 fi
 
-# set -u # Obrigatório?
+# set -u # É obrigatório usar?
 
 filepath="$2"
 filename="$(basename "$2")"
 
 # Validação do caminho do ficheiro
 if ! test -f "$filepath"; then
-  echo "[ERROR] File '$filename' not found!"
+  echo >&2 "[ERROR] File '$filename' not found!"
   exit 1
 fi
 
-# Validação da primeira flag (converte em lowercase e valida)
+# Validação da primeira flag (converte-a em lowercase e valida-a)
 flagLower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 if [ "$flagLower" != 'c' ] && [ "$flagLower" != 'p' ] && [ "$flagLower" != 't' ]; then
-  echo "[ERROR] Unknown command '$1'"
+  echo >&2 "[ERROR] Unknown command '$1'"
   exit 1
 fi
 
 # Validação de tipo de ficheiro
 if [[ $filename == *.txt ]]; then
-  echo "'$filename': Text file"
+  echo >&2 "'$filename': Text file"
 else
-  echo "'$filename': PDF file"
+  echo >&2 "'$filename': PDF file"
 fi
 
-# Output do ranking de palavras
-echo "[INFO] Processing '$filename'"
-echo
-echo ' COUNT MODE'
-tr '.' ' ' <"$2" | tr -s ' ' '\n' | sort | uniq -c | sort -r | cut -c 5- | nl
+echo >&2 "[INFO] Processing '$filename'"
 
-printf '\n'
-
-# while test $# -gt 0; do
-# case "$1" in
-# c)
-#   # first_argument=$1
-#   ;;
-# C)
-#   # last_argument=$1
-#   ;;
-# *)
-#   echo "Flag $1 não existe!"
-#   exit 1
-#   ;;
-# esac
-# done
+# Validação da existência de Stop Words e output do ranking de palavras
+if [ "$1" == 'c' ] || [ "$1" == 'p' ] || [ "$1" == 't' ]; then
+  echo >&2 "[INFO] STOP WORDS will be filtered out"
+  if [ "$3" == "pt" ]; then
+    echo >&2 "Stop Words file 'pt':"
+  else
+    echo >&2 "Stop Words file 'en':"
+  fi
+  echo " COUNT MODE"
+  tr '.' ' ' <"$2" | tr -s ' ' '\n' | grep -vwf ./StopWords/"$3".stop_words.txt | sort | uniq -c | sort -r | cut -c 5- | nl
+else
+  echo >&2 "[INFO] STOP WORDS will be counted"
+  echo " COUNT MODE"
+  tr '.' ' ' <"$2" | tr -s ' ' '\n' | sort | uniq -c | sort -r | cut -c 5- | nl
+fi

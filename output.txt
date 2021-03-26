@@ -1,0 +1,3 @@
+'exemplo.txt': Text file
+[INFO] Processing 'exemplo.txt'
+[INFO] STOP WORDS will be counted
