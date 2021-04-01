@@ -9,6 +9,7 @@ fi
 
 # set -u # É obrigatório usar?
 
+mode="$1"
 filepath="$2"
 filename="$(basename "$2")"
 filenameNoExt="${filename%.*}"
@@ -18,13 +19,6 @@ stopwordsLang="$3"
 # Validação do caminho do ficheiro
 if ! test -f "$filepath"; then
   echo >&2 "[ERROR] File '$filename' not found!"
-  exit 1
-fi
-
-# Validação da primeira flag (converte-a em lowercase e valida-a)
-flagLower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-if [ "$flagLower" != 'c' ] && [ "$flagLower" != 'p' ] && [ "$flagLower" != 't' ]; then
-  echo >&2 "[ERROR] Unknown command '$1'"
   exit 1
 fi
 
@@ -38,28 +32,44 @@ fi
 echo >&2 "[INFO] Processing '$filename'"
 
 # Validação da existência de Stop Words
-[ "$1" == 'c' ] || [ "$1" == 'p' ] || [ "$1" == 't' ] && removeStopWords=true
-
-if [ "$removeStopWords" = true ]; then
+if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
   echo >&2 "[INFO] STOP WORDS will be filtered out"
-  # Se o ficheiro de Stop Words estiver em português
-  if [ "$stopwordsLang" == "pt" ]; then
+  case "$stopwordsLang" in
+  pt) # Ficheiro de Stop Words em português
     echo >&2 "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
-  # Se o ficheiro de Stop Words estiver em inglês
-  else
-    echo >&2 "Stop Words file 'en':"
-  fi
-  # Criação do ficheiro com o ranking das palavras sem StopWords
-  echo " COUNT MODE"
-  tr -d 0-9 <"$filename" | tr -d '[:punct:]' | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" |
-    sort | uniq -c | sort -r | cut -c 5- | nl >&1 | tee result---"$filenameNoExt".txt
-else
-  # Criação do ficheiro com o ranking das palavras com StopWords
-  echo >&2 "[INFO] STOP WORDS will be counted"
-  echo " COUNT MODE"
-  tr -d 0-9 <"$filename" | tr -d '[:punct:]' | tr -s ' ' '\n' | tr -d ' ' |
-    sort | uniq -c | sort -r | cut -c 5- | nl >&1 | tee result---"$filenameNoExt".txt
+    ;;
+  en) # Ficheiro de Stop Words em inglês
+    echo >&2 "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
+    ;;
+  *)
+    echo "[ERROR] Invalid language"
+    exit 1
+    ;;
+  esac
 fi
+
+case "$mode" in
+c) # Contagem de cada palavra sem Stop Words
+  tr -d 0-9 <"$filename" | tr -d '[:punct:]' | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" |
+    sort | uniq -c | sort -r | cut -c 5- | nl >result---"$filenameNoExt".txt
+  ;;
+C) # Contagem de cada palavra com Stop Words
+  tr -d 0-9 <"$filename" | tr -d '[:punct:]' | tr -s ' ' '\n' | tr -d ' ' |
+    sort | uniq -c | sort -r | cut -c 5- | nl >result---"$filenameNoExt".txt
+  ;;
+p) # Gráfico da contagem de cada palavra sem Stop Words
+  ;;
+P) # Gráfico da contagem de cada palavra com Stop Words
+  ;;
+t) # Top N da contagem de cada palavra sem Stop Words
+  ;;
+T) # Top N da Contagem de cada palavra com Stop Words
+  ;;
+*)
+  echo >&2 "[ERROR] Unknown command '$mode'"
+  exit 1
+  ;;
+esac
 
 # Output do número total de palavras e dos detalhes do ficheiro gerado
 totalWords=$(wc -l result---"$filenameNoExt".txt | cut -d'r' -f1)
