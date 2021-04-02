@@ -7,6 +7,13 @@ if ! [ "$1" ] || ! [ "$2" ]; then
   exit 1
 fi
 
+# Convert to lowercase and check whether the argument is correct
+flagLower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+if [ "$flagLower" != 'c' ] && [ "$flagLower" != 'p' ] && [ "$flagLower" != 't' ]; then
+  echo >&2 "[ERROR] Unknown command '$1'"
+  exit 1
+fi
+
 mode="$1"
 filepath="$2"
 filename="$(basename "$2")"
@@ -39,102 +46,130 @@ else
   filepath="temp---$filenameNoExt".txt
 fi
 
+# Deletes the temporary file created by pdftotext
+delete_temp() {
+  if [ $isPdf ]; then rm "$filepath"; fi
+}
+
 # Stop Words validation
 if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
-  echo >&2 "[INFO] STOP WORDS will be filtered out"
   case "$stopwordsLang" in
   pt) # Portuguese Stop Words file
+    echo >&2 "[INFO] STOP WORDS will be filtered out"
     echo >&2 "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
   en) # English Stop Words file
+    echo >&2 "[INFO] STOP WORDS will be filtered out"
     echo >&2 "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
   *)
     echo "[ERROR] Invalid language"
+    delete_temp
     exit 1
     ;;
   esac
+else
+  echo "STOP WORDS will be counted"
+fi
+
+# Generate a HTML file with a Bar Chart
+generate_html() {
+  cat >result---"$filenameNoExt".html <<EOF
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>result---$filenameNoExt</title>
+    </head>
+    <body>
+      <img src="result---$filenameNoExt.png" alt="bar chart">
+    </body>
+  </html>
+EOF
+}
+
+# If the WORD_STATS_TOP environment variable exists but isn't a positive integer
+if [ "$mode" != "c" ] && [ "$mode" != "C" ]; then
+  if ! [[ -z "$WORD_STATS_TOP" || ($WORD_STATS_TOP =~ ^[0-9]+$) && ($WORD_STATS_TOP -gt 0) ]]; then
+    top=10
+    echo "'$WORD_STATS_TOP' not a positive number (using default 10)"
+    echo "WORD_STATS_TOP=$top"
+  else
+    # If the WORD_STATS_TOP environment variable doesn't exist
+    if ! [ "$WORD_STATS_TOP" ]; then
+      top=10
+      echo "Environment variable 'WORD_STATS_TOP' is empty (using default 10)"
+      echo "WORD_STATS_TOP=$top"
+    # If the WORD_STATS_TOP environment variable is correct
+    else
+      top=$WORD_STATS_TOP
+      echo "WORD_STATS_TOP=$top"
+    fi
+  fi
 fi
 
 # Output the number of distinct words and the details of the "result" file
 details_output() {
   totalWords=$(wc -l <result---"$filenameNoExt".txt)
-  case "$mode" in
-  c | C)
+  if [ "$mode" == "c" ] || [ "$mode" == "C" ]; then
     echo "RESULTS: 'result---$filenameNoExt.txt'" &&
       ls -al result---"$filenameNoExt".txt
     echo "$totalWords distinct words"
-    ;;
-  *)
-    # If the WORD_STATS_TOP environment variable exists but isn't a positive integer
-    if ! [[ -z "$WORD_STATS_TOP" || ($WORD_STATS_TOP =~ ^[0-9]+$) && ($WORD_STATS_TOP -gt 0) ]]; then
-      top=10
-      echo "'$WORD_STATS_TOP' not a positive number (using default 10)"
-      echo "WORD_STATS_TOP=$top"
-    else
-      # If the WORD_STATS_TOP environment variable doesn't exist
-      if ! [ "$WORD_STATS_TOP" ]; then
-        top=10
-        echo "Environment variable 'WORD_STATS_TOP' is empty (using default 10)"
-        echo "WORD_STATS_TOP=$top"
-      # If the WORD_STATS_TOP environment variable is correct
-      else
-        top=$WORD_STATS_TOP
-        echo "WORD_STATS_TOP=$top"
-      fi
-    fi
-    echo "RESULTS: 'result---$filenameNoExt.txt'" &&
-      ls -al result---"$filenameNoExt".txt
-    ;;
-  esac
+  fi
 }
+
+echo >&2 "[INFO] Processing '$filename'"
 
 case "$mode" in
 c) # Count words excluding Stop Words
-  echo >&2 "[INFO] Processing '$filename'"
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
     sort -nr | cut -c 5- | nl >result---"$filenameNoExt".txt
   details_output
   ;;
 C) # Count words including Stop words
-  echo >&2 "[INFO] Processing '$filename'"
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
     sort -nr | cut -c 5- | nl >result---"$filenameNoExt".txt
   details_output
   ;;
-p) # Bar graph of the top WORD_STATS_TOP words excluding Stop Words
-  echo >&2 "[INFO] Processing '$filename'"
-  details_output
+p) # Bar char of the top WORD_STATS_TOP words excluding Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
     sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
-  # gnuplot -e "filepath='$filename.png'" bar.gp
-  gnuplot <bar.gp
-  # display out.png
-  ;;
-P) # Bar graph of the top WORD_STATS_TOP words including Stop Words
-  echo >&2 "[INFO] Processing '$filename'"
+  gnuplot -e "output_file='result---$filenameNoExt.png'" -e "input_file='result---$filenameNoExt.txt'" bar_chart.gp
+  generate_html
   details_output
+  display result---"$filenameNoExt".png &
+  ;;
+P) # Bar char of the top WORD_STATS_TOP words including Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
     sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
-  gnuplot <bar.gp
-  # display out.png
+  gnuplot -e "output_file='result---$filenameNoExt.png'" -e "input_file='result---$filenameNoExt.txt'" bar_chart.gp
+  generate_html
+  details_output
+  display result---"$filenameNoExt".png &
   ;;
 t) # Top WORD_STATS_TOP words excluding Stop Words
-  echo >&2 "[INFO] Processing '$filename'"
+  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
+    sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
+
   details_output
+  echo "RESULTS: 'result---$filenameNoExt.txt'" &&
+    ls -al result---"$filenameNoExt".*
+
   echo "-------------------------------------"
   echo "# TOP $top elements"
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
-    sort -nr | cut -c 5- | head -n "$top" | nl | tee result---"$filenameNoExt".txt
+  cat result---"$filenameNoExt".txt
   echo "-------------------------------------"
   ;;
 T) # Top WORD_STATS_TOP words including Stop Words
-  echo >&2 "[INFO] Processing '$filename'"
+  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
+    sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
+
   details_output
+  echo "RESULTS: 'result---$filenameNoExt.txt'" &&
+    ls -al result---"$filenameNoExt".*
+
   echo "-------------------------------------"
   echo "# TOP $top elements"
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
-    sort -nr | cut -c 5- | nl | head -n "$top" | tee result---"$filenameNoExt".txt
+  cat result---"$filenameNoExt".txt
   echo "-------------------------------------"
   ;;
 *)
@@ -143,5 +178,4 @@ T) # Top WORD_STATS_TOP words including Stop Words
   ;;
 esac
 
-# Deletes the temporary file created by pdftotext
-if [ $isPdf ]; then rm "$filepath"; fi
+delete_temp
