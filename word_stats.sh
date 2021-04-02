@@ -44,7 +44,6 @@ fi
 # Validação da existência de Stop Words
 if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
   echo >&2 "[INFO] STOP WORDS will be filtered out"
-
   case "$stopwordsLang" in
   pt) # Ficheiro de Stop Words em português
     echo >&2 "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
@@ -52,12 +51,11 @@ if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
   en) # Ficheiro de Stop Words em inglês
     echo >&2 "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
-  *)
+  *) # Língua inválida
     echo "[ERROR] Invalid language"
     exit 1
     ;;
   esac
-
 fi
 
 # Output do número total de palavras e dos detalhes do ficheiro gerado
@@ -73,18 +71,27 @@ details_output() {
     #
     ;;
   t | T)
-    if [[ ($WORD_STATS_TOP =~ ^[0-9]+$) && $WORD_STATS_TOP -gt 0 ]]; then
-      top=$WORD_STATS_TOP
+    # Se a variável de ambiente WORD_STATS_TOP existir mas não for um número inteiro positivo
+    if ! [[ -z "$WORD_STATS_TOP" || ($WORD_STATS_TOP =~ ^[0-9]+$) && ($WORD_STATS_TOP -gt 0) ]]; then
+      top=10
+      echo "'$WORD_STATS_TOP' not a positive number (using default 10)"
       echo "WORD_STATS_TOP=$top"
     else
-      top=10
-      echo "Environment variable 'WORD_STATS_TOP' is empty (using default 10)"
+      # Se a variável de ambiente WORD_STATS_TOP não existir
+      if ! [ "$WORD_STATS_TOP" ]; then
+        top=10
+        echo "Environment variable 'WORD_STATS_TOP' is empty (using default 10)"
+        echo "WORD_STATS_TOP=$top"
+      # Se a variável de ambiente WORD_STATS_TOP estiver correta
+      else
+        top=$WORD_STATS_TOP
+        echo "WORD_STATS_TOP=$top"
+      fi
     fi
     echo "RESULTS: 'result---$filenameNoExt.txt'" &&
       ls -al result---"$filenameNoExt".txt
     ;;
   esac
-
 }
 
 case "$mode" in
@@ -115,7 +122,7 @@ t) # Top N da contagem de cada palavra sem Stop Words
     sort -r | cut -c 5- | nl | head -n "$top" | tee result---"$filenameNoExt".txt
   echo "-------------------------------------"
   ;;
-T) # Top N da Contagem de cada palavra com Stop Words
+T) # Top N da contagem de cada palavra com Stop Words
   echo >&2 "[INFO] Processing '$filename'"
   details_output
   echo "-------------------------------------"
@@ -124,13 +131,11 @@ T) # Top N da Contagem de cada palavra com Stop Words
     sort -r | cut -c 5- | nl | head -n "$top" | tee result---"$filenameNoExt".txt
   echo "-------------------------------------"
   ;;
-*)
+*) # Comando inválido
   echo >&2 "[ERROR] Unknown command '$mode'"
   exit 1
   ;;
 esac
 
 # Apaga o ficheiro temporário criado pelo pdftotext
-if [ $isPdf ]; then
-  rm "$filepath"
-fi
+if [ $isPdf ]; then rm "$filepath"; fi
