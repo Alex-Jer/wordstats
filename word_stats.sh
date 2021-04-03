@@ -21,7 +21,12 @@ filenameNoExt="${filename%.*}"
 
 # If the user specifies the Stop Words language
 if [ "$3" ]; then
-  stopwordsLang="$3"
+  if [ "$3" != "pt" ] && [ "$3" != "en" ]; then
+    echo "[ERROR] Invalid language"
+    exit 1
+  else
+    stopwordsLang="$3"
+  fi
 else
   # Assumes English by default
   stopwordsLang="en"
@@ -46,26 +51,16 @@ else
   filepath="temp---$filenameNoExt".txt
 fi
 
-# Deletes the temporary file created by pdftotext
-delete_temp() {
-  if [ $isPdf ]; then rm "$filepath"; fi
-}
-
 # Stop Words validation
 if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
   case "$stopwordsLang" in
   pt) # Portuguese Stop Words file
-    echo >&2 "[INFO] STOP WORDS will be filtered out"
+    echo >&2 "STOP WORDS will be filtered out"
     echo >&2 "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
   en) # English Stop Words file
-    echo >&2 "[INFO] STOP WORDS will be filtered out"
+    echo >&2 "STOP WORDS will be filtered out"
     echo >&2 "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
-    ;;
-  *)
-    echo "[ERROR] Invalid language"
-    delete_temp
-    exit 1
     ;;
   esac
 else
@@ -98,7 +93,6 @@ if [ "$mode" != "c" ] && [ "$mode" != "C" ]; then
     if ! [ "$WORD_STATS_TOP" ]; then
       top=10
       echo "Environment variable 'WORD_STATS_TOP' is empty (using default 10)"
-      echo "WORD_STATS_TOP=$top"
     # If the WORD_STATS_TOP environment variable is correct
     else
       top=$WORD_STATS_TOP
@@ -110,21 +104,27 @@ fi
 # Output the number of distinct words and the details of the "result" file
 details_output() {
   totalWords=$(wc -l <result---"$filenameNoExt".txt)
-  if [ "$mode" == "c" ] || [ "$mode" == "C" ]; then
-    echo "RESULTS: 'result---$filenameNoExt.txt'" &&
-      ls -al result---"$filenameNoExt".txt
-    echo "$totalWords distinct words"
+  if [ "$mode" != "p" ] && [ "$mode" != "P" ]; then
+    ls -al result---"$filenameNoExt".txt
+    if [ "$mode" == "c" ] || [ "$mode" == "C" ]; then
+      echo "RESULTS: 'result---$filenameNoExt.txt'"
+      echo "$totalWords distinct words"
+    fi
+  else
+    ls -al result---"$filenameNoExt".*
   fi
 }
 
+# Creates a bar graph with the specified gnuplot variables
 gnuplot_chart() {
+  # Checks for Stop Words and changes the graph's title accordingly
   if [ "$1" = true ]; then
     gnuplot \
       -e "output_file='result---$filenameNoExt.png'" \
       -e "input_file='result---$filenameNoExt.txt'" \
       -e "original_file='$filename'" \
       -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
-      -e "stopwords='with'" \
+      -e "stopwords='with stop words'" \
       bar_chart.gp
   else
     gnuplot \
@@ -132,12 +132,21 @@ gnuplot_chart() {
       -e "input_file='result---$filenameNoExt.txt'" \
       -e "original_file='$filename'" \
       -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
-      -e "stopwords='without'" \
+      -e "stopwords='\"$stopwordsLang\" stop words removed'" \
       bar_chart.gp
   fi
   generate_html
   details_output
   display result---"$filenameNoExt".png &
+}
+
+# Outputs the details and ranking
+ranking_output() {
+  details_output
+  echo "-------------------------------------"
+  echo "# TOP $top elements"
+  cat result---"$filenameNoExt".txt
+  echo "-------------------------------------"
 }
 
 echo >&2 "[INFO] Processing '$filename'"
@@ -166,28 +175,12 @@ P) # Bar char of the top WORD_STATS_TOP words including Stop Words
 t) # Top WORD_STATS_TOP words excluding Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
     sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
-
-  details_output
-  echo "RESULTS: 'result---$filenameNoExt.txt'" &&
-    ls -al result---"$filenameNoExt".*
-
-  echo "-------------------------------------"
-  echo "# TOP $top elements"
-  cat result---"$filenameNoExt".txt
-  echo "-------------------------------------"
+  ranking_output
   ;;
 T) # Top WORD_STATS_TOP words including Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
     sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
-
-  details_output
-  echo "RESULTS: 'result---$filenameNoExt.txt'" &&
-    ls -al result---"$filenameNoExt".*
-
-  echo "-------------------------------------"
-  echo "# TOP $top elements"
-  cat result---"$filenameNoExt".txt
-  echo "-------------------------------------"
+  ranking_output
   ;;
 *)
   echo >&2 "[ERROR] Unknown command '$mode'"
@@ -196,4 +189,4 @@ T) # Top WORD_STATS_TOP words including Stop Words
 esac
 
 # Deletes the temporary file created by pdftotext
-delete_temp
+if [ $isPdf ]; then rm "$filepath"; fi
