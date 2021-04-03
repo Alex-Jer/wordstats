@@ -117,6 +117,29 @@ details_output() {
   fi
 }
 
+gnuplot_chart() {
+  if [ "$1" = true ]; then
+    gnuplot \
+      -e "output_file='result---$filenameNoExt.png'" \
+      -e "input_file='result---$filenameNoExt.txt'" \
+      -e "original_file='$filename'" \
+      -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
+      -e "stopwords='with'" \
+      bar_chart.gp
+  else
+    gnuplot \
+      -e "output_file='result---$filenameNoExt.png'" \
+      -e "input_file='result---$filenameNoExt.txt'" \
+      -e "original_file='$filename'" \
+      -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
+      -e "stopwords='without'" \
+      bar_chart.gp
+  fi
+  generate_html
+  details_output
+  display result---"$filenameNoExt".png &
+}
+
 echo >&2 "[INFO] Processing '$filename'"
 
 case "$mode" in
@@ -133,18 +156,12 @@ C) # Count words including Stop words
 p) # Bar char of the top WORD_STATS_TOP words excluding Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
     sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
-  gnuplot -e "output_file='result---$filenameNoExt.png'" -e "input_file='result---$filenameNoExt.txt'" bar_chart.gp
-  generate_html
-  details_output
-  display result---"$filenameNoExt".png &
+  gnuplot_chart false
   ;;
 P) # Bar char of the top WORD_STATS_TOP words including Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
     sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
-  gnuplot -e "output_file='result---$filenameNoExt.png'" -e "input_file='result---$filenameNoExt.txt'" bar_chart.gp
-  generate_html
-  details_output
-  display result---"$filenameNoExt".png &
+  gnuplot_chart true
   ;;
 t) # Top WORD_STATS_TOP words excluding Stop Words
   grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
@@ -178,4 +195,5 @@ T) # Top WORD_STATS_TOP words including Stop Words
   ;;
 esac
 
+# Deletes the temporary file created by pdftotext
 delete_temp
