@@ -1,1 +1,0 @@
-^[0-9]+$ --- https://stackoverflow.com/questions/10899308/how-can-i-test-if-a-variable-is-not-a-positive-integer
