@@ -44,11 +44,16 @@ fi
 if [[ $filename == *.txt ]]; then
   echo >&2 "'$filename': Text file"
 else
-  # Makes a new temporary text file from the PDF file
-  echo >&2 "'$filename': PDF file"
-  isPdf=true
-  pdftotext "$filepath" "temp---$filenameNoExt".txt
-  filepath="temp---$filenameNoExt".txt
+	if [[ $filename == *.pdf ]]; then
+		# Makes a new temporary text file from the PDF file
+		echo >&2 "'$filename': PDF file"
+		isPdf=true
+		pdftotext "$filepath" "temp---$filenameNoExt".txt
+		filepath="temp---$filenameNoExt".txt
+	else
+		echo >&2 "[ERROR] Invalid file type! The file must be .txt or .pdf!"
+		exit 1
+	fi
 fi
 
 # Stop Words validation
