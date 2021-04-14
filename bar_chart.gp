@@ -1,3 +1,6 @@
+set encoding utf8
+
+# Generate the PNG graph
 set terminal png size 0,700
 set output output_image
 set title noenhanced "Top words for '" . original_file . "'\nCreated: " . date_time . "\n(" . stopwords . ")" font ",11"
@@ -19,6 +22,7 @@ set xtics rotate by 45 right
 plot input_file using 1:2:xtic(3) title "# of occurrences" with boxes linecolor rgb "#026440",\
 "" using 1:2:2 with labels boxed offset char 0.1,0 notitle
 
+# Generate the HTML graph
 set terminal canvas size 0,700
 set output output_html
 set title noenhanced "Top words for '" . original_file . "'\nCreated: " . date_time . "\n\n(" . stopwords . ")" font ",11"
