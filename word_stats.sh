@@ -67,21 +67,6 @@ else
   echo "STOP WORDS will be counted"
 fi
 
-# Generate a HTML file with a Bar Chart
-generate_html() {
-  cat >result---"$filenameNoExt".html <<EOF
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <title>result---$filenameNoExt</title>
-    </head>
-    <body>
-      <img src="result---$filenameNoExt.png" alt="bar chart">
-    </body>
-  </html>
-EOF
-}
-
 # If the WORD_STATS_TOP environment variable exists but isn't a positive integer
 if [ "$mode" != "c" ] && [ "$mode" != "C" ]; then
   if ! [[ -z "$WORD_STATS_TOP" || ($WORD_STATS_TOP =~ ^[0-9]+$) && ($WORD_STATS_TOP -gt 0) ]]; then
@@ -120,7 +105,8 @@ gnuplot_chart() {
   # Checks for Stop Words and changes the graph's title accordingly
   if [ "$1" = true ]; then
     gnuplot \
-      -e "output_file='result---$filenameNoExt.png'" \
+      -e "output_image='result---$filenameNoExt.png'" \
+      -e "output_html='result---$filenameNoExt.html'" \
       -e "input_file='result---$filenameNoExt.txt'" \
       -e "original_file='$filename'" \
       -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
@@ -128,14 +114,14 @@ gnuplot_chart() {
       bar_chart.gp
   else
     gnuplot \
-      -e "output_file='result---$filenameNoExt.png'" \
+      -e "output_image='result---$filenameNoExt.png'" \
+      -e "output_html='result---$filenameNoExt.html'" \
       -e "input_file='result---$filenameNoExt.txt'" \
       -e "original_file='$filename'" \
       -e "date_time='$(date "+%Y.%m.%d-%Hh%M:%S")'" \
       -e "stopwords='\"$stopwordsLang\" stop words removed'" \
       bar_chart.gp
   fi
-  generate_html
   details_output
   display result---"$filenameNoExt".png &
 }
