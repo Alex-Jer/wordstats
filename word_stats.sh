@@ -47,8 +47,8 @@ elif [[ $filename == *.pdf ]]; then
   # Makes a new temporary text file from the PDF file
   echo "'$filename': PDF file"
   isPdf=true
-  pdftotext "$filepath" "temp---$filenameNoExt".txt
-  filepath="temp---$filenameNoExt".txt
+  pdftotext "$filepath" "tmp---$filenameNoExt".txt
+  filepath="tmp---$filenameNoExt".txt
 else
   echo >&2 "[ERROR] Unsupported file format! Only .pdf or .txt files are supported"
   exit 1
@@ -129,7 +129,7 @@ gnuplot_chart() {
   display result---"$filenameNoExt".png &
 }
 
-# Outputs the details and ranking
+# Outputs the details and the ranking
 ranking_output() {
   details_output
   echo "-------------------------------------"
