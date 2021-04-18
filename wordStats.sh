@@ -34,6 +34,13 @@ fi
 
 stopwordsPath="StopWords/$stopwordsLang.stop_words.txt"
 
+if [ "$mode" == "c" ] || [ "$mode" == "t" ] || [ "$mode" == "p" ]; then
+  if ! test -f "$stopwordsPath"; then
+    echo >&2 "[ERROR] StopWords file not found!"
+    exit 1
+  fi
+fi
+
 # File path validation
 if ! test -f "$filepath"; then
   echo >&2 "[ERROR] File '$filename' not found!"
@@ -142,32 +149,32 @@ echo "[INFO] Processing '$filename'"
 
 case "$mode" in
 c) # Count words excluding Stop Words
-  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
     nl >result---"$filenameNoExt".txt
   details_output
   ;;
 C) # Count words including Stop words
-  grep -oE "([a-zA-ú'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
     nl >result---"$filenameNoExt".txt
   details_output
   ;;
 p) # Bar char of the top WORD_STATS_TOP words excluding Stop Words
-  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
     head -n "$top" | nl >result---"$filenameNoExt".txt
   gnuplot_chart false
   ;;
 P) # Bar char of the top WORD_STATS_TOP words including Stop Words
-  grep -oE "([a-zA-ú'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
     head -n "$top" | nl >result---"$filenameNoExt".txt
   gnuplot_chart true
   ;;
 t) # Top WORD_STATS_TOP words excluding Stop Words
-  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
     head -n "$top" | nl >result---"$filenameNoExt".txt
   ranking_output
   ;;
 T) # Top WORD_STATS_TOP words including Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+  grep -oE "([A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ'-]+)" <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
     head -n "$top" | nl >result---"$filenameNoExt".txt
   ranking_output
   ;;
