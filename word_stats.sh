@@ -3,7 +3,7 @@
 # Arguments validation
 if ! [ "$1" ] || ! [ "$2" ]; then
   echo >&2 "[ERROR] Insufficient parameters!"
-  echo >&2 "./word_stats.sh Cc|Pp|Tt INPUT [iso3166]"
+  echo >&2 "./word_stats.sh <Cc|Pp|Tt> <INPUT> [iso3166]"
   exit 1
 fi
 
@@ -42,25 +42,28 @@ fi
 
 # File type validation
 if [[ $filename == *.txt ]]; then
-  echo >&2 "'$filename': Text file"
-else
+  echo "'$filename': Text file"
+elif [[ $filename == *.pdf ]]; then
   # Makes a new temporary text file from the PDF file
-  echo >&2 "'$filename': PDF file"
+  echo "'$filename': PDF file"
   isPdf=true
   pdftotext "$filepath" "temp---$filenameNoExt".txt
   filepath="temp---$filenameNoExt".txt
+else
+  echo >&2 "[ERROR] Unsupported file format! Only .pdf or .txt files are supported"
+  exit 1
 fi
 
 # Stop Words validation
 if [ "$mode" == 'c' ] || [ "$mode" == 'p' ] || [ "$mode" == 't' ]; then
   case "$stopwordsLang" in
   pt) # Portuguese Stop Words file
-    echo >&2 "STOP WORDS will be filtered out"
-    echo >&2 "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
+    echo "STOP WORDS will be filtered out"
+    echo "Stop Words file 'pt': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
   en) # English Stop Words file
-    echo >&2 "STOP WORDS will be filtered out"
-    echo >&2 "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
+    echo "STOP WORDS will be filtered out"
+    echo "Stop Words file 'en': '$stopwordsPath' ($(wc -l "$stopwordsPath" | cut -d'S' -f1)words)"
     ;;
   esac
 else
@@ -135,37 +138,37 @@ ranking_output() {
   echo "-------------------------------------"
 }
 
-echo >&2 "[INFO] Processing '$filename'"
+echo "[INFO] Processing '$filename'"
 
 case "$mode" in
 c) # Count words excluding Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
-    sort -nr | cut -c 5- | nl >result---"$filenameNoExt".txt
+  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+    nl >result---"$filenameNoExt".txt
   details_output
   ;;
 C) # Count words including Stop words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
-    sort -nr | cut -c 5- | nl >result---"$filenameNoExt".txt
+  grep -oE "([a-zA-ú'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+    nl >result---"$filenameNoExt".txt
   details_output
   ;;
 p) # Bar char of the top WORD_STATS_TOP words excluding Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
-    sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
+  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+    head -n "$top" | nl >result---"$filenameNoExt".txt
   gnuplot_chart false
   ;;
 P) # Bar char of the top WORD_STATS_TOP words including Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
-    sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
+  grep -oE "([a-zA-ú'-]+)" <"$filepath" | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+    head -n "$top" | nl >result---"$filenameNoExt".txt
   gnuplot_chart true
   ;;
 t) # Top WORD_STATS_TOP words excluding Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | grep -vwif "$stopwordsPath" | sort | uniq -c |
-    sort -nr | cut -c 5- | head -n "$top" | nl >result---"$filenameNoExt".txt
+  grep -oE "([a-zA-ú'-]+)" <"$filepath" | grep -vwif "$stopwordsPath" | sort | uniq -c | sort -nr | cut -c 5- |
+    head -n "$top" | nl >result---"$filenameNoExt".txt
   ranking_output
   ;;
 T) # Top WORD_STATS_TOP words including Stop Words
-  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c |
-    sort -nr | cut -c 5- | nl | head -n "$top" >result---"$filenameNoExt".txt
+  grep -oE '[[:alpha:]]*' <"$filepath" | tr -s ' ' '\n' | tr -d ' ' | sort | uniq -c | sort -nr | cut -c 5- |
+    head -n "$top" | nl >result---"$filenameNoExt".txt
   ranking_output
   ;;
 *)
